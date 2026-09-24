@@ -1,0 +1,33 @@
+<section class="d20lt-connect-body">
+  {{#if showCode}}
+    <p>{{localize "D20LT.Connect.Instructions"}}</p>
+    <div class="d20lt-code" data-action="copy" title="{{localize "D20LT.Connect.CopyHint"}}">{{userCode}}</div>
+    <p class="d20lt-link">
+      <a href="{{verifyUrl}}" target="_blank" rel="noopener noreferrer">{{verifyUrl}}</a>
+    </p>
+    {{#if minutes}}
+      <p class="hint">{{localize "D20LT.Connect.Expires" minutes=minutes}}</p>
+    {{/if}}
+  {{/if}}
+
+  <p class="d20lt-status d20lt-status-{{status}}">{{statusText}}</p>
+  {{#if campaignName}}<p><strong>{{campaignName}}</strong></p>{{/if}}
+  {{#if error}}<p class="d20lt-error">{{error}}</p>{{/if}}
+
+  <footer class="form-footer">
+    {{#if showRetry}}
+      <button type="button" data-action="retry"><i class="fas fa-rotate"></i> {{localize "D20LT.Connect.Retry"}}</button>
+    {{/if}}
+    {{#if showCancel}}
+      <button type="button" data-action="cancel"><i class="fas fa-xmark"></i> {{localize "D20LT.Connect.Cancel"}}</button>
+    {{/if}}
+  </footer>
+</section>
+
+<style>
+  .d20lt-connect-body { padding: 0.5rem; text-align: center; }
+  .d20lt-code { font-size: 2.4rem; font-weight: bold; letter-spacing: 0.2em; font-family: monospace; margin: 0.75rem 0; cursor: copy; user-select: all; }
+  .d20lt-link { word-break: break-all; }
+  .d20lt-error { color: var(--color-level-error, #c0392b); }
+  .d20lt-status { font-style: italic; }
+</style>

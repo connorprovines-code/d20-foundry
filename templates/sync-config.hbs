@@ -1,0 +1,105 @@
+<section class="d20lt-config-body">
+  {{#unless systemSupported}}
+    <p class="d20lt-error">{{localize "D20LT.Config.UnsupportedSystem"}}</p>
+  {{/unless}}
+
+  <fieldset>
+    <legend>{{localize "D20LT.Config.Connection"}}</legend>
+    {{#if connected}}
+      <p>{{localize "D20LT.Config.ConnectedTo"}} <strong>{{campaignName}}</strong></p>
+      <p>{{localize "D20LT.Config.Status"}}: <span class="d20lt-status d20lt-status-{{status}}">{{statusText}}</span>
+        {{#if lastSync}} <span class="hint">({{localize "D20LT.Config.LastSync"}} {{lastSync}})</span>{{/if}}</p>
+      {{#if lastError}}<p class="d20lt-error">{{lastError}}</p>{{/if}}
+      {{#unless isActiveGM}}<p class="hint">{{localize "D20LT.Config.NotActiveGM"}}</p>{{/unless}}
+      <div class="d20lt-buttons">
+        <button type="button" data-action="refresh"><i class="fas fa-rotate"></i> {{localize "D20LT.Config.Refresh"}}</button>
+        <button type="button" data-action="disconnect"><i class="fas fa-link-slash"></i> {{localize "D20LT.Config.Disconnect"}}</button>
+      </div>
+    {{else}}
+      <p>{{localize "D20LT.Config.NotConnected"}}</p>
+      {{#if (eq status "revoked")}}<p class="d20lt-error">{{localize "D20LT.Status.revoked"}}</p>{{/if}}
+      <button type="button" data-action="connect"><i class="fas fa-link"></i> {{localize "D20LT.Config.Connect"}}</button>
+    {{/if}}
+  </fieldset>
+
+  {{#if connected}}
+    <fieldset>
+      <legend>{{localize "D20LT.Config.Characters"}}</legend>
+      <p class="hint">{{localize "D20LT.Config.CharactersHint"}}</p>
+      {{#each players}}
+        <div class="form-group">
+          <label>{{name}}{{#if suggested}} <span class="hint">({{localize "D20LT.Config.Suggested"}})</span>{{/if}}</label>
+          <div class="form-fields">
+            <select name="link.{{id}}">
+              <option value="">{{localize "D20LT.Config.NotLinked"}}</option>
+              {{#each options}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+            {{#if showMode}}
+              <select name="mode.{{id}}" title="{{localize "D20LT.Config.FirstLinkHint"}}">
+                <option value="d20" {{#if (eq mode "d20")}}selected{{/if}}>{{localize "D20LT.Config.D20Wins"}}</option>
+                <option value="foundry" {{#if (eq mode "foundry")}}selected{{/if}}>{{localize "D20LT.Config.FoundryWins"}}</option>
+              </select>
+            {{/if}}
+          </div>
+        </div>
+      {{else}}
+        <p class="hint">{{localize "D20LT.Config.NoPlayers"}}</p>
+      {{/each}}
+    </fieldset>
+
+    <fieldset>
+      <legend>{{localize "D20LT.Config.Party"}}</legend>
+      <p class="hint">{{localize "D20LT.Config.PartyHint"}}</p>
+      <div class="form-group">
+        <label>{{localize "D20LT.Config.PartyActor"}}{{#if party.suggested}} <span class="hint">({{localize "D20LT.Config.Suggested"}})</span>{{/if}}</label>
+        <div class="form-fields">
+          <select name="link.party">
+            <option value="">{{localize "D20LT.Config.NotLinked"}}</option>
+            {{#each party.options}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+          {{#if party.showMode}}
+            <select name="mode.party" title="{{localize "D20LT.Config.FirstLinkHint"}}">
+              <option value="d20" {{#if (eq party.mode "d20")}}selected{{/if}}>{{localize "D20LT.Config.D20Wins"}}</option>
+              <option value="foundry" {{#if (eq party.mode "foundry")}}selected{{/if}}>{{localize "D20LT.Config.FoundryWins"}}</option>
+            </select>
+          {{/if}}
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>{{localize "D20LT.Config.Loot"}}</legend>
+      <p class="hint">{{localize "D20LT.Config.LootHint"}}</p>
+      <div class="form-group">
+        <label>{{localize "D20LT.Config.LootActor"}}</label>
+        <div class="form-fields">
+          <select name="link.incoming">
+            <option value="">{{localize "D20LT.Config.NotLinked"}}</option>
+            {{#each loot.options}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+          {{#if loot.showMode}}
+            <select name="mode.incoming" title="{{localize "D20LT.Config.FirstLinkHint"}}">
+              <option value="d20" {{#if (eq loot.mode "d20")}}selected{{/if}}>{{localize "D20LT.Config.D20Wins"}}</option>
+              <option value="foundry" {{#if (eq loot.mode "foundry")}}selected{{/if}}>{{localize "D20LT.Config.FoundryWins"}}</option>
+            </select>
+          {{/if}}
+          <button type="button" data-action="createLoot"><i class="fas fa-box-open"></i> {{localize "D20LT.Config.CreateLoot"}}</button>
+        </div>
+      </div>
+    </fieldset>
+
+    <p class="hint">{{localize "D20LT.Config.FirstLinkExplain"}}</p>
+
+    <footer class="form-footer">
+      <button type="submit"><i class="fas fa-save"></i> {{localize "D20LT.Config.Save"}}</button>
+    </footer>
+  {{/if}}
+</section>
+
+<style>
+  .d20lt-config-body { padding: 0.25rem 0.5rem; }
+  .d20lt-config-body fieldset { margin-bottom: 0.75rem; }
+  .d20lt-config-body .form-fields { gap: 0.25rem; }
+  .d20lt-buttons { display: flex; gap: 0.5rem; }
+  .d20lt-error { color: var(--color-level-error, #c0392b); }
+</style>

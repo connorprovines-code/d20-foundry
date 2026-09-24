@@ -1,0 +1,74 @@
+{
+  "D20LT": {
+    "Menu": {
+      "Name": "D20 Loot Tracker",
+      "Label": "Connect and link actors",
+      "Hint": "Connect this world to a D20 Loot Tracker campaign, then choose which actor holds each character's items, the party's items and the unprocessed loot."
+    },
+    "Connect": {
+      "Title": "Connect to D20 Loot Tracker",
+      "Instructions": "Open the link below, sign in to D20 Loot Tracker, and enter this code:",
+      "CopyHint": "Click to copy the code",
+      "Copied": "Code copied.",
+      "Expires": "The code expires in {minutes} min.",
+      "Retry": "Get a new code",
+      "Cancel": "Cancel",
+      "Status": {
+        "starting": "Requesting a code...",
+        "pending": "Waiting for approval in D20 Loot Tracker.",
+        "approved": "Connected.",
+        "expired": "The code expired before it was approved.",
+        "error": "The code could not be requested."
+      }
+    },
+    "Config": {
+      "Title": "D20 Loot Tracker",
+      "Connection": "Connection",
+      "ConnectedTo": "Connected to",
+      "Status": "Status",
+      "LastSync": "last sync",
+      "NotConnected": "This world is not connected to a D20 Loot Tracker campaign.",
+      "Connect": "Connect",
+      "Disconnect": "Disconnect",
+      "DisconnectConfirm": "Stop syncing this world? D20 Loot Tracker revokes this connection. Items already in Foundry and in D20 stay as they are.",
+      "Refresh": "Sync now",
+      "NotActiveGM": "Only the active GM's client syncs. It runs when you are the active GM.",
+      "UnsupportedSystem": "This game system is not supported. D20 Loot Tracker syncs Pathfinder 1e, Pathfinder 2e and D&D 5e worlds.",
+      "Characters": "Characters",
+      "CharactersHint": "Pick the Foundry actor that holds each D20 character's items and coins. Characters without an actor do not sync.",
+      "NoPlayers": "The campaign has no characters yet, or the list has not loaded. Use Sync now to load it.",
+      "Suggested": "matched by name",
+      "NotLinked": "Not linked",
+      "Party": "Party",
+      "PartyHint": "The Party inventory and the Party Fund.",
+      "PartyActor": "Party actor",
+      "Loot": "Unprocessed Loot",
+      "LootHint": "Loot dropped into this actor lands in D20 as unprocessed loot. Once it is claimed in D20, it moves to that character's sheet.",
+      "LootActor": "Loot actor",
+      "LootActorName": "Unprocessed Loot",
+      "CreateLoot": "Create",
+      "D20Wins": "D20 wins",
+      "FoundryWins": "Foundry wins",
+      "FirstLinkHint": "Which side to keep the first time this actor syncs",
+      "FirstLinkExplain": "The first sync of a newly linked actor pairs items by name. D20 wins: the actor's inventory and coins become what D20 holds, and items D20 does not have are removed from the actor. Foundry wins: D20 takes the actor's inventory and coins, and D20 items the actor does not have are marked Discarded. After the first sync, the latest change on either side wins.",
+      "Save": "Save links"
+    },
+    "Status": {
+      "disconnected": "Not connected",
+      "connecting": "Connecting",
+      "connected": "Syncing",
+      "error": "Trouble reaching D20 Loot Tracker, retrying",
+      "revoked": "The connection was revoked. Connect again to resume syncing."
+    },
+    "Notify": {
+      "Connected": "Connected to {campaign}. Link the campaign's characters to actors to start syncing.",
+      "Disconnected": "Disconnected from D20 Loot Tracker.",
+      "Revoked": "D20 Loot Tracker revoked this world's connection. Open Settings, D20 Loot Tracker, and connect again.",
+      "Refused": "D20 Loot Tracker refused a change from Foundry: {message} The actor goes back to what D20 holds.",
+      "LinksSaved": "Actor links saved.",
+      "LootCreated": "Created {name}. Save links to use it.",
+      "Error": "D20 Loot Tracker: {message}",
+      "UnsupportedSystem": "D20 Loot Tracker does not support this game system, so nothing syncs in this world."
+    }
+  }
+}
