@@ -1,12 +1,13 @@
 {
   "id": "d20-loot-tracker",
   "title": "D20 Loot Tracker",
-  "description": "Two-way sync of character inventory, party loot and coins between Foundry VTT and D20 Loot Tracker.",
-  "version": "0.1.0",
+  "description": "Two-way sync of party loot, character inventories and coins between Foundry VTT and the D20 Loot Tracker web and Android app, for D&D 5e, Pathfinder 2e and Pathfinder 1e.",
+  "version": "1.0.0",
   "authors": [
     {
       "name": "D20 Loot Tracker",
-      "url": "https://app.d20-loot-tracker.com"
+      "url": "https://d20-loot-tracker.com/",
+      "discord": ".serthe"
     }
   ],
   "compatibility": {
@@ -18,21 +19,29 @@
       {
         "id": "pf1",
         "type": "system",
-        "compatibility": { "minimum": "11.11" }
+        "compatibility": {
+          "minimum": "11.11"
+        }
       },
       {
         "id": "pf2e",
         "type": "system",
-        "compatibility": { "minimum": "8.0.0" }
+        "compatibility": {
+          "minimum": "8.0.0"
+        }
       },
       {
         "id": "dnd5e",
         "type": "system",
-        "compatibility": { "minimum": "6.0.0" }
+        "compatibility": {
+          "minimum": "6.0.0"
+        }
       }
     ]
   },
-  "esmodules": ["module.js"],
+  "esmodules": [
+    "module.js"
+  ],
   "languages": [
     {
       "lang": "en",
@@ -40,11 +49,9 @@
       "path": "lang/en.json"
     }
   ],
-  "url": "https://github.com/OWNER/d20-foundry",
-  "manifest": "https://github.com/OWNER/d20-foundry/releases/latest/download/module.json",
-  "download": "https://github.com/OWNER/d20-foundry/releases/latest/download/module.zip",
-  "bugs": "https://github.com/OWNER/d20-foundry/issues",
-  "flags": {
-    "_comment": "OWNER in url, manifest, download and bugs is a placeholder: replace it with the GitHub account that hosts the releases before publishing."
-  }
+  "url": "https://d20-loot-tracker.com/",
+  "manifest": "https://app.d20-loot-tracker.com/foundry/module.json",
+  "download": "https://app.d20-loot-tracker.com/foundry/d20-loot-tracker-{version}.zip",
+  "bugs": "https://discord.gg/TwSTSZvfaN",
+  "license": "https://d20-loot-tracker.com/terms"
 }

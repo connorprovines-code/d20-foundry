@@ -14,6 +14,7 @@ function foundryAssets() {
       mkdirSync(dist, { recursive: true });
       const manifest = JSON.parse(readFileSync(resolve(root, 'module.json'), 'utf8'));
       manifest.version = pkg.version;
+      manifest.download = manifest.download.replace('{version}', pkg.version);
       writeFileSync(resolve(dist, 'module.json'), `${JSON.stringify(manifest, null, 2)}\n`);
       cpSync(resolve(root, 'lang'), resolve(dist, 'lang'), { recursive: true });
       cpSync(resolve(root, 'templates'), resolve(dist, 'templates'), { recursive: true });
@@ -21,15 +22,16 @@ function foundryAssets() {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   define: {
     __MODULE_VERSION__: JSON.stringify(pkg.version),
   },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    sourcemap: true,
-    minify: false,
+    // A release build ships minified with no source map (vite build --mode release).
+    sourcemap: mode !== 'release',
+    minify: mode === 'release',
     target: 'es2022',
     lib: {
       entry: resolve(root, 'src/main.js'),
@@ -46,4 +48,4 @@ export default defineConfig({
     include: ['test/**/*.test.js'],
     setupFiles: ['test/helpers/setup.js'],
   },
-});
+}));
