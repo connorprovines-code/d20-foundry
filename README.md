@@ -37,7 +37,7 @@ Then enable **D20 Loot Tracker** in the world's module settings.
 7. Pick an **Unprocessed Loot** actor, or click **Create** to make one:
    - pf2e: a loot actor.
    - dnd5e: a group actor with no members.
-   - pf1: an NPC actor shown with the pf1 NPC loot sheet.
+   - pf1: an NPC actor shown with the pf1 NPC loot sheet. pf1 marks items created on an NPC as unidentified (it only starts items identified on player characters), so loot you create bare on this actor arrives in D20 Loot Tracker unidentified too. Drag items from a compendium, or tick Identified on the item, and they sync identified.
 8. Click **Save links**.
 
 The code is good for 10 minutes. Only the GM connects; players need nothing.
