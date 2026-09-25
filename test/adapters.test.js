@@ -71,6 +71,27 @@ describe('pf1 adapter', () => {
     expect(pf1Adapter.itemToFields(gems)).toMatchObject({ isTreasure: true, itemIcon: 'treasure' });
   });
 
+  it('reads 11.11 ammunition (loot with subType ammo) as ammunition too', () => {
+    const env = installFoundry({ systemId: 'pf1' });
+    const actor = env.addActor(fx.pf1.character([fx.pf1.arrows11()]));
+    const arrows = actor.items.contents[0];
+    expect(pf1Adapter.itemToFields(arrows)).toMatchObject({ isAmmunition: true, charges: 20, itemIcon: 'weapon', isUnidentified: false });
+    expect(pf1Adapter.isConsumable(arrows)).toBe(true);
+  });
+
+  it('creates ammunition in the shape this pf1 version has', async () => {
+    installFoundry({ systemId: 'pf1' });
+    const group = { name: 'Arrows', isAmmunition: true, charges: 20, quantity: 1, value: 1, weight: 0.15, notes: '' };
+    // 11.11: no "ammo" item type, so a loot item with subType "ammo" and no uses block.
+    const eleven = await pf1Adapter.fieldsToItemData(group, 20);
+    expect(eleven).toMatchObject({ type: 'loot', system: { subType: 'ammo', quantity: 20 } });
+    expect(eleven.system.uses).toBeUndefined();
+    // master: an "ammo" item type exists.
+    globalThis.game.documentTypes = { Item: ['weapon', 'loot', 'ammo'] };
+    expect(await pf1Adapter.fieldsToItemData(group, 20)).toMatchObject({ type: 'ammo', system: { subType: 'arrow', quantity: 20 } });
+    delete globalThis.game.documentTypes;
+  });
+
   it('lists container contents, which are not embedded items', () => {
     const env = installFoundry({ systemId: 'pf1' });
     const actor = env.addActor(fx.pf1.character([

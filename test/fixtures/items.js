@@ -30,6 +30,12 @@ export const pf1 = {
     type: 'ammo',
     system: { subType: 'arrow', quantity: 20, price: 0.05, weight: { value: 0.15 } },
   }),
+  // pf1 11.11 has no "ammo" item type: ammunition is loot with subType "ammo".
+  arrows11: () => ({
+    name: 'Arrow',
+    type: 'loot',
+    system: { subType: 'ammo', quantity: 20, price: 0.05, weight: { value: 0.15 }, identified: true },
+  }),
   gems: () => ({
     name: 'Garnet',
     type: 'loot',

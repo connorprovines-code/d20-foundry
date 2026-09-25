@@ -1,8 +1,11 @@
 // Pathfinder 1e adapter (pf1 11.11 on Foundry v13).
 // Verified against the pf1 source at the 11.11 release commit (73f9fe9d, "chore: match
 // latest release version"), https://gitlab.com/foundryvtt_pathfinder1e/foundryvtt-pathfinder1:
-// - physical item types: weapon, equipment, implant, consumable, loot, container, ammo
-//   (public/system.json; models/item/*-model.mjs extend PhysicalItemModel)
+// - physical item types: weapon, equipment, implant, consumable, loot, container
+//   (public/system.json; models/item/*-model.mjs extend PhysicalItemModel). The shipped 11.11
+//   has NO "ammo" item type (verified in its template.json and pf1.js, 2026-09-24): ammunition
+//   is a "loot" item with subType "ammo" (pf1.config.lootTypes). The unreleased master adds an
+//   "ammo" type; both are handled.
 // - system.quantity, system.price (gp per item), system.weight.value (lb per item),
 //   system.identified (prepared default true), system.unidentified.{name,price},
 //   system.equipped / system.carried (prepared defaults true)
@@ -42,13 +45,14 @@ function iconFor(item) {
     case 'loot':
       if (TREASURE_SUBTYPES.has(sub)) return ICONS.treasure;
       if (sub === 'tool') return ICONS.tools;
+      if (sub === 'ammo') return ICONS.weapon;
       return null;
     default: return null;
   }
 }
 
 function typeFor(group) {
-  if (group.isAmmunition) return { type: 'ammo', subType: 'arrow' };
+  if (group.isAmmunition) return hasAmmoType() ? { type: 'ammo', subType: 'arrow' } : { type: 'loot', subType: 'ammo' };
   if (group.itemIcon === ICONS.coins || group.itemIcon === ICONS.treasure || group.isTreasure) {
     return { type: 'loot', subType: 'treasure' };
   }
@@ -63,6 +67,15 @@ function typeFor(group) {
 }
 
 const hasCharges = (item) => item.system?.uses?.per === 'charges';
+
+/** Ammunition in either pf1 shape: the "ammo" item type (master) or loot with subType "ammo" (11.x). */
+const isAmmoItem = (item) => item?.type === 'ammo' || (item?.type === 'loot' && item.system?.subType === 'ammo');
+
+/** Whether this pf1 version has an "ammo" item type at all. */
+function hasAmmoType() {
+  const types = globalThis.game?.documentTypes?.Item ?? Object.keys(globalThis.CONFIG?.Item?.dataModels ?? {});
+  return Array.isArray(types) ? types.includes('ammo') : !!types?.ammo;
+}
 
 export const pf1Adapter = {
   id: 'pf1',
@@ -95,13 +108,13 @@ export const pf1Adapter = {
   },
 
   isConsumable(item) {
-    return item.type === 'consumable' || item.type === 'ammo';
+    return item.type === 'consumable' || isAmmoItem(item);
   },
 
   itemToFields(item) {
     const sys = item.system ?? {};
     const src = item._source?.system ?? sys;
-    const isAmmunition = item.type === 'ammo';
+    const isAmmunition = isAmmoItem(item);
     return compact({
       name: realName(item),
       value: round(num(sys.price)),
@@ -128,7 +141,7 @@ export const pf1Adapter = {
       system.price = num(group.value);
       system.weight = { value: num(group.weight) };
       system.description = { value: notesToHtml(group.notes) };
-      if (type !== 'ammo' && group.charges !== null && group.charges !== undefined) {
+      if (!group.isAmmunition && group.charges !== null && group.charges !== undefined) {
         system.uses = { per: 'charges', value: num(group.charges), maxFormula: String(num(group.charges)) };
       }
     }
