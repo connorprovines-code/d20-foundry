@@ -1,11 +1,13 @@
 # D20 Loot Tracker for Foundry VTT
 
-Keeps a Foundry VTT world and a [D20 Loot Tracker](https://app.d20-loot-tracker.com) campaign in step, in both directions:
+Track every coin, item and treasure your party finds without juggling spreadsheets or notes. D20 Loot Tracker is a web and Android app built for D&D 5e, Pathfinder 2e and Pathfinder 1e campaigns, and this module ties it directly to your Foundry world so changes flow both ways in real time.
 
-- Loot the GM drops into the **Unprocessed Loot** actor appears in D20 as unprocessed loot.
-- When a player claims it in D20, it lands on that character's sheet in Foundry.
-- Items sold, discarded or used up in D20 disappear from Foundry.
-- Potions drunk, arrows fired, coins spent and items traded between characters in Foundry show up in D20, with the same ledger entries the app writes.
+**What it does**
+- Treasure the GM awards in Foundry lands in the app's Unprocessed Loot, waiting to be claimed.
+- Once a player claims something in the app, it appears on their Foundry character sheet automatically.
+- Selling, splitting or paying out in the app adjusts everyone's coins in Foundry, and editing coins on a sheet adjusts them in the app.
+- Using consumables, spending ammunition or removing items in Foundry gets recorded in the app's ledger.
+- Items the GM marks as unidentified remain secret in both Foundry and the app until revealed.
 
 ## Requirements
 
