@@ -48,10 +48,11 @@ The code is good for 10 minutes. Only the GM connects; players need nothing.
 
 The first time an actor syncs, its items are paired with the character's D20 items by name. For each newly linked actor, choose which side to keep:
 
+- **Keep both** (the default): paired items take D20's values, D20 items the actor does not have are added to it, and the actor's other items are added to D20. Coins stay as D20 has them, unless D20's purse is empty; then the actor's coins go to D20.
 - **D20 wins**: the actor's inventory and coins become what D20 holds. Items D20 does not have are removed from the actor.
 - **Foundry wins**: D20 takes the actor's inventory and coins. D20 items the actor does not have are marked Discarded.
 
-After the first sync, the latest change on either side wins.
+D20 wins and Foundry wins ask for confirmation before the links are saved. After the first sync, the latest change on either side wins.
 
 ## What syncs
 
@@ -71,7 +72,7 @@ After the first sync, the latest change on either side wins.
 | Coins on the Party actor | The Party Fund |
 | Coins in the pf2e Unprocessed Loot actor | Coin loot |
 
-Not synced: item descriptions after an item is created, spells, features, character stats, DM hoards, actors that are not linked, and coins on the dnd5e or pf1 Unprocessed Loot actor (add coin loot in D20 instead). Items inside Foundry containers sync as the owner's items; D20's own container assignments are not changed from Foundry.
+Not synced: item descriptions (an item D20 adds to Foundry gets D20's notes as its description, but Foundry descriptions are never sent to D20), spells, features, character stats, DM hoards, actors that are not linked, pf1's weightless coins, and coins on the dnd5e or pf1 Unprocessed Loot actor (add coin loot in D20 instead). Items inside Foundry containers sync as the owner's items; D20's own container assignments are not changed from Foundry.
 
 ## Coins: platinum and electrum
 
@@ -81,7 +82,7 @@ pf1 and pf2e store whole coins only, so a D20 purse of 12.5 gp shows in Foundry 
 
 ## Who runs the sync
 
-Only the active GM's browser syncs, and only while it is open. Changes made while no GM is logged in sync the next time a GM logs in. If more than one GM is connected, Foundry's active GM runs the sync.
+The sync runs in the browser of the GM who connected the world, while that browser has the world open. Changes made in the meantime, in Foundry or in D20, sync the next time it does. To sync from another browser or GM account instead, open the module settings there and click **Connect here**; the previous browser stops syncing.
 
 ## Privacy
 
@@ -89,7 +90,7 @@ Data leaves the world only for actors the GM links, and only to D20 Loot Tracker
 
 - For each item on a linked actor: its name, value, weight or bulk, quantity, charges, rarity, identification state and unidentified name, equipped and attuned state, item type, and the compendium it came from.
 - The coin totals of linked characters and the Party actor.
-- The IDs of the linked actors.
+- The IDs of the linked actors and of their items.
 - When connecting: the world's ID and title, the game system and its version, and the Foundry and module versions.
 
 Nothing is sent about other actors, scenes, journals, chat, or user accounts.
@@ -107,8 +108,8 @@ The connection token is kept only in the connecting GM's browser (a client setti
 ```
 npm install
 npm test        # vitest
-npm run build   # dist/module.js, module.json, lang/, templates/
-npm run build:release   # the same, minified and without a source map, as shipped
+npm run build   # dist/module.js, module.json, lang/, templates/, styles/
+npm run build:release   # the same without a source map, as shipped
 ```
 
 `dist/` is the module folder Foundry loads.

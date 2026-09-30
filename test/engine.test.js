@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, D20Api, NetworkError } from '../src/api.js';
 import { MODULE_ID } from '../src/constants.js';
+import { completePairing, runtime, updateSyncClient } from '../src/runtime.js';
 import { KEYS, registerSettings, store } from '../src/settings.js';
 import { SyncEngine } from '../src/sync/engine.js';
 import { getAdapter } from '../src/systems/index.js';
@@ -388,6 +389,26 @@ describe('first link', () => {
     expect(store.get(KEYS.firstLink).p1.done).toBe(true);
   });
 
+  it('Keep both: pairs by name, adds D20 groups, keeps unpaired Foundry items and sends them now', async () => {
+    const { pc, api } = await firstLinkSetup('merge');
+    expect(pc.items.contents.map((i) => i.name).sort()).toEqual(['Rope', 'Ruby', 'potion of healing']);
+    expect(pc.items.find((i) => i.name === 'potion of healing').system.quantity).toBe(5);
+    const ops = api.apply.mock.calls.flatMap(([o]) => o);
+    expect(ops).toEqual([expect.objectContaining({ type: 'create', owner: 'p1', item: expect.objectContaining({ name: 'Ruby' }) })]);
+    // D20's purse was not empty, so it stays.
+    expect(pc.system.currency.gp).toBe(10);
+  });
+
+  it("Keep both: the actor's coins go to D20 when D20's purse is empty", async () => {
+    const ctx = await setup({ currency: { pp: 0, gp: 42, ep: 0, sp: 3, cp: 0 } });
+    ctx.api.stateValue.players = [{ id: 'p1', name: 'Merric', gold: 0, silver: 0, copper: 0 }];
+    await store.set(KEYS.firstLink, { ...store.get(KEYS.firstLink), p1: { actorUuid: ctx.pc.uuid, mode: 'merge', done: false } });
+    await ctx.engine.start();
+    expect(ctx.pc.system.currency).toMatchObject({ gp: 42, sp: 3 });
+    const ops = ctx.api.apply.mock.calls.flatMap(([o]) => o);
+    expect(ops).toContainEqual({ type: 'purse', owner: 'p1', coins: { pp: 0, gp: 42, ep: 0, sp: 3, cp: 0 } });
+  });
+
   it('Foundry wins: D20 takes Foundry quantities, new items and coins; missing groups are discarded', async () => {
     const { api, pc } = await firstLinkSetup('foundry');
     const ops = api.apply.mock.calls.flatMap(([o]) => o);
@@ -462,5 +483,135 @@ describe('actor mapping', () => {
     expect(api.putActors).toHaveBeenCalledWith(expect.arrayContaining([{ target: 'p5', actorUuid: newPc.uuid }]));
     expect(newPc.flags[MODULE_ID].target).toBe('p5');
     expect(store.get(KEYS.firstLink).p5).toMatchObject({ actorUuid: newPc.uuid, mode: 'foundry' });
+  });
+
+  it('defaults the first-link choice to Keep both', async () => {
+    const { engine, env } = await started();
+    const newPc = env.addActor(fx.dnd5e.character([]));
+    await engine.saveLinks({ ...store.get(KEYS.links), p5: newPc.uuid });
+    expect(store.get(KEYS.firstLink).p5).toMatchObject({ actorUuid: newPc.uuid, mode: 'merge', done: true });
+  });
+
+  it('refuses the same actor for two links before calling the server', async () => {
+    const { engine, api, pc } = await started();
+    await expect(engine.saveLinks({ ...store.get(KEYS.links), party: pc.uuid })).rejects.toThrow('Notify.DuplicateActor');
+    expect(api.putActors).not.toHaveBeenCalled();
+  });
+
+  it('counts an actor linked twice once, so its items keep their quantity', async () => {
+    const { engine, api, pc, loot } = await started();
+    api.stateValue.actorLinks = [
+      { target: 'p1', actorUuid: pc.uuid }, { target: 'party', actorUuid: pc.uuid }, { target: 'incoming', actorUuid: loot.uuid },
+    ];
+    api.stateValue.groups = [group({ quantity: 2 })];
+    await engine.loadState();
+    expect(pc.items.size).toBe(1);
+    expect(pc.items.contents[0].system.quantity).toBe(2);
+    await engine.flush();
+    expect(api.apply).not.toHaveBeenCalled();
+  });
+
+  it('after a failed reload, runs the first link on the next poll instead of reconciling', async () => {
+    const { engine, api, env } = await started();
+    const newPc = env.addActor(fx.dnd5e.character([fx.dnd5e.potion()]));
+    api.stateValue.groups = [group({ syncGroup: 'g5', owner: 'p5', quantity: 3 })];
+    api.state.mockRejectedValueOnce(new ApiError(502, {}));
+    await expect(engine.saveLinks({ ...store.get(KEYS.links), p5: newPc.uuid })).rejects.toThrow();
+    expect(engine.needsResync).toBe(true);
+    // A change for p5 arrives before the reload: it must not add a second potion.
+    api.changes.mockResolvedValue({ cursor: '12', groups: [group({ syncGroup: 'g5', owner: 'p5', quantity: 3 })], purses: [], containers: [] });
+    await engine.poll();
+    expect(newPc.items.size).toBe(1);
+    expect(flagOf(newPc.items.contents[0]).syncGroup).toBe('g5');
+    expect(newPc.items.contents[0].system.quantity).toBe(3);
+  });
+
+  it('skips inbound changes for an actor whose first link has not run, and reloads', async () => {
+    const { engine, api, env } = await started();
+    const newPc = env.addActor(fx.dnd5e.character([fx.dnd5e.potion()]));
+    await store.set(KEYS.links, { ...store.get(KEYS.links), p5: newPc.uuid });
+    await store.set(KEYS.firstLink, { ...store.get(KEYS.firstLink), p5: { actorUuid: newPc.uuid, mode: 'merge', done: false } });
+    api.changes.mockResolvedValueOnce({ cursor: '12', groups: [group({ syncGroup: 'g5', owner: 'p5', quantity: 3 })], purses: [], containers: [] });
+    await engine.poll();
+    expect(newPc.items.size).toBe(1);
+    expect(flagOf(newPc.items.contents[0]).syncGroup).toBeUndefined();
+    expect(engine.needsResync).toBe(true);
+  });
+});
+
+describe('purse writes', () => {
+  it.each(['pf1', 'pf2e'])('%s: a fractional D20 purse becomes whole coins and is not sent back', async (systemId) => {
+    const { engine, api, pc } = await started({ systemId });
+    api.changes.mockResolvedValueOnce({ cursor: '12', groups: [], purses: [{ id: 'p1', gold: 12.5, silver: 0, copper: 0 }], containers: [] });
+    await engine.poll();
+    expect(getAdapter(systemId).readCurrency(pc)).toMatchObject({ gp: 12, sp: 5, cp: 0 });
+    await engine.flush();
+    expect(api.apply).not.toHaveBeenCalled();
+  });
+
+  it('writes a D20 purse with the same total but different coins', async () => {
+    const { engine, api, pc } = await started({ currency: { pp: 0, gp: 12, ep: 0, sp: 0, cp: 0 } });
+    api.changes.mockResolvedValueOnce({ cursor: '12', groups: [], purses: [{ id: 'p1', gold: 11, silver: 10, copper: 0 }], containers: [] });
+    await engine.poll();
+    expect(pc.system.currency).toMatchObject({ gp: 11, sp: 10 });
+  });
+});
+
+describe('which browser syncs', () => {
+  const pairedHere = async (key = 'k1') => {
+    await store.set(KEYS.clientKey, key);
+    await store.set(KEYS.connection, { ...store.get(KEYS.connection), clientKey: 'k1' });
+  };
+
+  afterEach(() => { runtime.engine = null; });
+
+  it('the browser that paired syncs even when another GM is the active GM', async () => {
+    const ctx = await setup();
+    await pairedHere();
+    globalThis.game.users.activeGM = { id: 'other-gm' };
+    await ctx.engine.start();
+    expect(ctx.engine.running).toBe(true);
+  });
+
+  it('any other browser does not sync, even as the active GM', async () => {
+    const ctx = await setup();
+    await pairedHere('old-key');
+    await ctx.engine.start();
+    expect(ctx.engine.running).toBe(false);
+    expect(ctx.api.state).not.toHaveBeenCalled();
+  });
+
+  it('stops when another browser pairs', async () => {
+    const ctx = await setup();
+    await pairedHere();
+    runtime.engine = ctx.engine;
+    await ctx.engine.start();
+    await store.set(KEYS.connection, { ...store.get(KEYS.connection), clientKey: 'k2' });
+    updateSyncClient();
+    expect(ctx.engine.running).toBe(false);
+  });
+
+  it('a connection from before clientKey follows the active GM, whose browser then claims it', async () => {
+    const ctx = await setup();
+    expect(store.get(KEYS.connection).clientKey).toBeUndefined();
+    await ctx.engine.start();
+    expect(ctx.engine.running).toBe(true);
+    const connection = store.get(KEYS.connection);
+    expect(connection.clientKey).toBeTruthy();
+    expect(store.get(KEYS.clientKey)).toBe(connection.clientKey);
+    // From now on another GM becoming active does not move the sync away from this browser.
+    globalThis.game.users.activeGM = { id: 'other-gm' };
+    expect(ctx.engine.canSync()).toBe(true);
+  });
+
+  it('pairing records this browser and its GM, then syncs here', async () => {
+    const ctx = await setup();
+    runtime.engine = ctx.engine;
+    await completePairing({ token: 'tok2', connection: { id: 'c1', campaignId: 'camp', campaignName: 'Test' } });
+    const connection = store.get(KEYS.connection);
+    expect(connection.clientKey).toBeTruthy();
+    expect(store.get(KEYS.clientKey)).toBe(connection.clientKey);
+    expect(connection.pairedBy).toBe('gm1');
+    expect(ctx.engine.running).toBe(true);
   });
 });

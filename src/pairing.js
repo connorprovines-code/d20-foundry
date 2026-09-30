@@ -16,6 +16,20 @@ export function worldInfo() {
 }
 
 /**
+ * The approval link shown to the GM. The server's link is used only when it is an https URL
+ * on the app's own origin or the configured server's; anything else falls back to VERIFY_URL.
+ */
+export function safeVerifyUrl(url, baseUrl) {
+  try {
+    const u = new URL(url);
+    const allowed = [new URL(VERIFY_URL).origin];
+    if (baseUrl) allowed.push(new URL(baseUrl).origin);
+    if (u.protocol === 'https:' && allowed.includes(u.origin)) return u.href;
+  } catch { /* not a URL */ }
+  return VERIFY_URL;
+}
+
+/**
  * @param {import('./api.js').D20Api} api
  * @param {object} opts
  * @param {(state: object) => void} opts.onUpdate  called with { status, userCode, verifyUrl, expiresAt, error }
@@ -39,7 +53,8 @@ export function startPairing(api, { onUpdate, setTimeout: st = setTimeout, now =
     const start = await api.pairStart(worldInfo());
     const intervalMs = Math.max(1, Number(start.interval) || 3) * 1000;
     const expiresAt = now() + (Number(start.expiresIn) || 600) * 1000;
-    const base = { userCode: start.userCode, verifyUrl: start.verifyUrl || VERIFY_URL, expiresAt };
+    const verifyUrl = safeVerifyUrl(start.verifyUrl, api.getBaseUrl?.());
+    const base = { userCode: start.userCode, verifyUrl, expiresAt };
     update({ ...base, status: 'pending' });
 
     while (!cancelled) {

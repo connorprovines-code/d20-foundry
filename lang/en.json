@@ -32,7 +32,9 @@
       "Disconnect": "Disconnect",
       "DisconnectConfirm": "Stop syncing this world? D20 Loot Tracker revokes this connection. Items already in Foundry and in D20 stay as they are.",
       "Refresh": "Sync now",
-      "NotActiveGM": "Only the active GM's client syncs. It runs when you are the active GM.",
+      "OtherClient": "Sync runs in the browser that connected this world, while it is open. To sync from this browser instead, connect here.",
+      "OtherClientNamed": "Sync runs in the browser where {name} connected this world, while it is open. To sync from this browser instead, connect here.",
+      "ConnectHere": "Connect here",
       "UnsupportedSystem": "This game system is not supported. D20 Loot Tracker syncs Pathfinder 1e, Pathfinder 2e and D&D 5e worlds.",
       "Characters": "Characters",
       "CharactersHint": "Pick the Foundry actor that holds each D20 character's items and coins. Characters without an actor do not sync.",
@@ -47,11 +49,16 @@
       "LootActor": "Loot actor",
       "LootActorName": "Unprocessed Loot",
       "CreateLoot": "Create",
+      "KeepBoth": "Keep both",
       "D20Wins": "D20 wins",
       "FoundryWins": "Foundry wins",
       "FirstLinkHint": "Which side to keep the first time this actor syncs",
-      "FirstLinkExplain": "The first sync of a newly linked actor pairs items by name. D20 wins: the actor's inventory and coins become what D20 holds, and items D20 does not have are removed from the actor. Foundry wins: D20 takes the actor's inventory and coins, and D20 items the actor does not have are marked Discarded. After the first sync, the latest change on either side wins.",
-      "Save": "Save links"
+      "FirstLinkExplain": "The first sync of a newly linked actor pairs items by name. Keep both: paired items take D20's values, and items only one side has are added to the other; coins stay as D20 has them, unless D20 has none, in which case the actor's coins go to D20. D20 wins: the actor's inventory and coins become what D20 holds, and items D20 does not have are removed from the actor. Foundry wins: D20 takes the actor's inventory and coins, and D20 items the actor does not have are marked Discarded. After the first sync, the latest change on either side wins.",
+      "Save": "Save links",
+      "ConfirmTitle": "Replace items on the first sync?",
+      "ConfirmD20": "D20 wins removes the items D20 does not have from {names}.",
+      "ConfirmFoundry": "Foundry wins marks as Discarded the D20 items missing from {names}.",
+      "ConfirmContinue": "Save the links and run the first sync?"
     },
     "Status": {
       "disconnected": "Not connected",
@@ -68,7 +75,8 @@
       "LinksSaved": "Actor links saved.",
       "LootCreated": "Created {name}. Save links to use it.",
       "Error": "D20 Loot Tracker: {message}",
-      "UnsupportedSystem": "D20 Loot Tracker does not support this game system, so nothing syncs in this world."
+      "UnsupportedSystem": "D20 Loot Tracker does not support this game system, so nothing syncs in this world.",
+      "DuplicateActor": "{name} is chosen for more than one link. Each actor can hold only one character, the party or the Unprocessed Loot."
     }
   }
 }

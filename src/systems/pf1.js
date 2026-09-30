@@ -1,11 +1,9 @@
 // Pathfinder 1e adapter (pf1 11.11 on Foundry v13).
-// Verified against the pf1 source at the 11.11 release commit (73f9fe9d, "chore: match
-// latest release version"), https://gitlab.com/foundryvtt_pathfinder1e/foundryvtt-pathfinder1:
+// Data paths, from the pf1 11.11 source (https://gitlab.com/foundryvtt_pathfinder1e/foundryvtt-pathfinder1):
 // - physical item types: weapon, equipment, implant, consumable, loot, container
-//   (public/system.json; models/item/*-model.mjs extend PhysicalItemModel). The shipped 11.11
-//   has NO "ammo" item type (verified in its template.json and pf1.js, 2026-09-24): ammunition
-//   is a "loot" item with subType "ammo" (pf1.config.lootTypes). The unreleased master adds an
-//   "ammo" type; both are handled.
+//   (public/system.json; models/item/*-model.mjs extend PhysicalItemModel). pf1 11.11 has no
+//   "ammo" item type: ammunition is a "loot" item with subType "ammo" (pf1.config.lootTypes).
+//   Later pf1 versions add an "ammo" type; both are handled.
 // - system.quantity, system.price (gp per item), system.weight.value (lb per item),
 //   system.identified (prepared default true), system.unidentified.{name,price},
 //   system.equipped / system.carried (prepared defaults true)

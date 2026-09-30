@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
 const root = import.meta.dirname;
 const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
 
-/** Copies module.json (with the package version), lang/ and templates/ next to the bundle. */
+/** Copies module.json (with the package version), lang/, templates/ and styles/ next to the bundle. */
 function foundryAssets() {
   return {
     name: 'foundry-assets',
@@ -18,6 +18,7 @@ function foundryAssets() {
       writeFileSync(resolve(dist, 'module.json'), `${JSON.stringify(manifest, null, 2)}\n`);
       cpSync(resolve(root, 'lang'), resolve(dist, 'lang'), { recursive: true });
       cpSync(resolve(root, 'templates'), resolve(dist, 'templates'), { recursive: true });
+      cpSync(resolve(root, 'styles'), resolve(dist, 'styles'), { recursive: true });
     },
   };
 }
@@ -29,9 +30,9 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    // A release build ships minified with no source map (vite build --mode release).
+    // The release build (vite build --mode release) ships readable, without a source map.
     sourcemap: mode !== 'release',
-    minify: mode === 'release',
+    minify: false,
     target: 'es2022',
     lib: {
       entry: resolve(root, 'src/main.js'),

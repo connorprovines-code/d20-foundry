@@ -7,14 +7,18 @@
     <legend>{{localize "D20LT.Config.Connection"}}</legend>
     {{#if connected}}
       <p>{{localize "D20LT.Config.ConnectedTo"}} <strong>{{campaignName}}</strong></p>
-      <p>{{localize "D20LT.Config.Status"}}: <span class="d20lt-status d20lt-status-{{status}}">{{statusText}}</span>
-        {{#if lastSync}} <span class="hint">({{localize "D20LT.Config.LastSync"}} {{lastSync}})</span>{{/if}}</p>
-      {{#if lastError}}<p class="d20lt-error">{{lastError}}</p>{{/if}}
-      {{#unless isActiveGM}}<p class="hint">{{localize "D20LT.Config.NotActiveGM"}}</p>{{/unless}}
-      <div class="d20lt-buttons">
-        <button type="button" data-action="refresh"><i class="fas fa-rotate"></i> {{localize "D20LT.Config.Refresh"}}</button>
-        <button type="button" data-action="disconnect"><i class="fas fa-link-slash"></i> {{localize "D20LT.Config.Disconnect"}}</button>
-      </div>
+      {{#if syncHere}}
+        <p>{{localize "D20LT.Config.Status"}}: <span class="d20lt-status d20lt-status-{{status}}">{{statusText}}</span>
+          {{#if lastSync}} <span class="hint">({{localize "D20LT.Config.LastSync"}} {{lastSync}})</span>{{/if}}</p>
+        {{#if lastError}}<p class="d20lt-error">{{lastError}}</p>{{/if}}
+        <div class="d20lt-buttons">
+          <button type="button" data-action="refresh"><i class="fas fa-rotate"></i> {{localize "D20LT.Config.Refresh"}}</button>
+          <button type="button" data-action="disconnect"><i class="fas fa-link-slash"></i> {{localize "D20LT.Config.Disconnect"}}</button>
+        </div>
+      {{else}}
+        <p class="hint">{{otherClientText}}</p>
+        <button type="button" data-action="connect"><i class="fas fa-link"></i> {{localize "D20LT.Config.ConnectHere"}}</button>
+      {{/if}}
     {{else}}
       <p>{{localize "D20LT.Config.NotConnected"}}</p>
       {{#if (eq status "revoked")}}<p class="d20lt-error">{{localize "D20LT.Status.revoked"}}</p>{{/if}}
@@ -22,7 +26,7 @@
     {{/if}}
   </fieldset>
 
-  {{#if connected}}
+  {{#if syncHere}}
     <fieldset>
       <legend>{{localize "D20LT.Config.Characters"}}</legend>
       <p class="hint">{{localize "D20LT.Config.CharactersHint"}}</p>
@@ -36,6 +40,7 @@
             </select>
             {{#if showMode}}
               <select name="mode.{{id}}" title="{{localize "D20LT.Config.FirstLinkHint"}}">
+                <option value="merge" {{#if (eq mode "merge")}}selected{{/if}}>{{localize "D20LT.Config.KeepBoth"}}</option>
                 <option value="d20" {{#if (eq mode "d20")}}selected{{/if}}>{{localize "D20LT.Config.D20Wins"}}</option>
                 <option value="foundry" {{#if (eq mode "foundry")}}selected{{/if}}>{{localize "D20LT.Config.FoundryWins"}}</option>
               </select>
@@ -59,6 +64,7 @@
           </select>
           {{#if party.showMode}}
             <select name="mode.party" title="{{localize "D20LT.Config.FirstLinkHint"}}">
+              <option value="merge" {{#if (eq party.mode "merge")}}selected{{/if}}>{{localize "D20LT.Config.KeepBoth"}}</option>
               <option value="d20" {{#if (eq party.mode "d20")}}selected{{/if}}>{{localize "D20LT.Config.D20Wins"}}</option>
               <option value="foundry" {{#if (eq party.mode "foundry")}}selected{{/if}}>{{localize "D20LT.Config.FoundryWins"}}</option>
             </select>
@@ -79,6 +85,7 @@
           </select>
           {{#if loot.showMode}}
             <select name="mode.incoming" title="{{localize "D20LT.Config.FirstLinkHint"}}">
+              <option value="merge" {{#if (eq loot.mode "merge")}}selected{{/if}}>{{localize "D20LT.Config.KeepBoth"}}</option>
               <option value="d20" {{#if (eq loot.mode "d20")}}selected{{/if}}>{{localize "D20LT.Config.D20Wins"}}</option>
               <option value="foundry" {{#if (eq loot.mode "foundry")}}selected{{/if}}>{{localize "D20LT.Config.FoundryWins"}}</option>
             </select>
@@ -95,11 +102,3 @@
     </footer>
   {{/if}}
 </section>
-
-<style>
-  .d20lt-config-body { padding: 0.25rem 0.5rem; }
-  .d20lt-config-body fieldset { margin-bottom: 0.75rem; }
-  .d20lt-config-body .form-fields { gap: 0.25rem; }
-  .d20lt-buttons { display: flex; gap: 0.5rem; }
-  .d20lt-error { color: var(--color-level-error, #c0392b); }
-</style>

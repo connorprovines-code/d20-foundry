@@ -19,6 +19,9 @@ export function foldCoins(coins = {}) {
 /** True when a Foundry purse still holds platinum or electrum that should be folded. */
 export const hasUnfoldedCoins = (coins = {}) => num(coins.pp) !== 0 || num(coins.ep) !== 0;
 
+/** True for a missing purse or one holding no coins. */
+export const isEmptyPurse = (p) => !p || (num(p.gold) === 0 && num(p.silver) === 0 && num(p.copper) === 0);
+
 export function samePurse(a, b) {
   if (!a || !b) return false;
   return roundCoin(a.gold) === roundCoin(b.gold)

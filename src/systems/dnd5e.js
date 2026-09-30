@@ -1,5 +1,5 @@
 // D&D 5e adapter (dnd5e 6.x on Foundry v14).
-// Verified against dnd5e release-6.0.5, https://github.com/foundryvtt/dnd5e:
+// Data paths, from the dnd5e 6.0.5 source (https://github.com/foundryvtt/dnd5e):
 // - item types with inventory: weapon, equipment, consumable, tool, loot, container
 //   (system.json documentTypes.Item; "backpack" is still declared there as a legacy type)
 // - system.quantity, system.price.{value, denomination}, system.weight.{value, units},

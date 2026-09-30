@@ -12,7 +12,7 @@ export const MAX_OPS_PER_APPLY = 100;
 /** A copy that appeared on another actor this recently may still be half of a move (create, then delete). */
 export const MOVE_SETTLE_MS = 1500;
 
-/** Owners in the contract besides a players.id. */
+/** Owners the API uses besides a players.id. */
 export const OWNER_INCOMING = 'incoming';
 export const OWNER_PARTY = 'party';
 

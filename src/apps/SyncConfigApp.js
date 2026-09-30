@@ -54,11 +54,15 @@ export function getSyncConfigAppClass() {
     };
 
     #unsubscribe = null;
+    /** The form holds choices not saved yet; the engine's updates must not re-render over them. */
+    #dirty = false;
 
     async _prepareContext() {
       const engine = runtime.engine;
       const connection = store.get(KEYS.connection);
-      const connected = store.isConnected();
+      const connected = store.worldConnected();
+      const syncHere = !!engine?.canSync();
+      const pairedBy = connection?.pairedBy ? game.users?.get?.(connection.pairedBy)?.name ?? '' : '';
       const links = store.get(KEYS.links) ?? {};
       const first = store.get(KEYS.firstLink) ?? {};
       const actors = sortedActors();
@@ -76,7 +80,7 @@ export function getSyncConfigAppClass() {
           suggested: !linked && !!suggestion,
           options: actorOptions(selected, { preferTypes: ['character'] }),
           showMode: isNew(p.id, selected) && !!selected,
-          mode: first[p.id]?.mode ?? 'd20',
+          mode: first[p.id]?.mode ?? 'merge',
         };
       });
 
@@ -88,7 +92,8 @@ export function getSyncConfigAppClass() {
       const status = engine?.status ?? 'disconnected';
       return {
         connected,
-        isActiveGM: SyncEngine.isActiveGM(),
+        syncHere,
+        otherClientText: pairedBy ? t('Config.OtherClientNamed', { name: pairedBy }) : t('Config.OtherClient'),
         campaignName: connection?.campaignName ?? '',
         status,
         statusText: t(`Status.${status}`),
@@ -101,24 +106,53 @@ export function getSyncConfigAppClass() {
           suggested: !partyLinked && !!partySuggestion,
           options: actorOptions(partySelected, { preferTypes: ['party', 'group'] }),
           showMode: isNew(OWNER_PARTY, partySelected) && !!partySelected,
-          mode: first[OWNER_PARTY]?.mode ?? 'd20',
+          mode: first[OWNER_PARTY]?.mode ?? 'merge',
         },
         loot: {
           selected: lootSelected,
           options: actorOptions(lootSelected, { preferTypes: ['loot', 'group', 'npc'] }),
           showMode: isNew(OWNER_INCOMING, lootSelected) && !!lootSelected,
-          mode: first[OWNER_INCOMING]?.mode ?? 'd20',
+          mode: first[OWNER_INCOMING]?.mode ?? 'merge',
         },
       };
     }
 
     _onRender(context, options) {
       super._onRender?.(context, options);
+      // Every render rebuilds the form from the saved settings.
+      this.#dirty = false;
       if (!this.#unsubscribe && runtime.engine) {
         this.#unsubscribe = runtime.engine.onChange(() => {
-          if (this.rendered && !this.element?.contains(document.activeElement)) this.render();
+          if (this.rendered && !this.#dirty && !this.element?.contains(document.activeElement)) this.render();
         });
       }
+    }
+
+    _onChangeForm(formConfig, event) {
+      super._onChangeForm(formConfig, event);
+      this.#dirty = true;
+    }
+
+    /**
+     * Asks before saving when a new link would replace items on either side (D20 wins or
+     * Foundry wins). Keep both needs no confirmation.
+     */
+    async #confirmFirstLinks(links, modes) {
+      const first = store.get(KEYS.firstLink) ?? {};
+      const names = { d20: [], foundry: [] };
+      for (const [target, uuid] of Object.entries(links)) {
+        if (!uuid || (first[target]?.done && first[target].actorUuid === uuid)) continue;
+        const mode = modes[target] ?? 'merge';
+        if (!names[mode]) continue;
+        names[mode].push(foundry.utils.escapeHTML(fromUuidSync(uuid)?.name ?? uuid));
+      }
+      if (!names.d20.length && !names.foundry.length) return true;
+      const content = [
+        names.d20.length ? `<p>${t('Config.ConfirmD20', { names: names.d20.join(', ') })}</p>` : '',
+        names.foundry.length ? `<p>${t('Config.ConfirmFoundry', { names: names.foundry.join(', ') })}</p>` : '',
+        `<p>${t('Config.ConfirmContinue')}</p>`,
+      ].join('');
+      return foundry.applications.api.DialogV2.confirm({ window: { title: t('Config.ConfirmTitle') }, content });
     }
 
     async close(options) {
@@ -134,6 +168,12 @@ export function getSyncConfigAppClass() {
       const links = {};
       for (const [target, uuid] of Object.entries(data.link ?? {})) links[target] = uuid || null;
       const modes = { ...(data.mode ?? {}) };
+      const twice = SyncEngine.duplicateActor(links);
+      if (twice) {
+        ui.notifications.error(t('Notify.DuplicateActor', { name: fromUuidSync(twice)?.name ?? twice }));
+        return;
+      }
+      if (!(await this.#confirmFirstLinks(links, modes))) return;
       try {
         await engine.saveLinks(links, modes);
         ui.notifications.info(t('Notify.LinksSaved'));
@@ -170,6 +210,7 @@ export function getSyncConfigAppClass() {
         option.textContent = actor.name;
         option.selected = true;
         select.append(option);
+        this.#dirty = true;
       }
       ui.notifications.info(t('Notify.LootCreated', { name: actor.name }));
     }

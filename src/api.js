@@ -1,4 +1,4 @@
-// HTTP client for the D20 Loot Tracker Foundry API (tasks/foundry.md in the app repo).
+// HTTP client for the D20 Loot Tracker Foundry API.
 // Bearer token auth; a 401 flips the client into a disconnected state; network errors
 // (no response at all) are retried with backoff, HTTP errors are not.
 
@@ -57,14 +57,10 @@ export class D20Api {
     return `${base}/${route}${qs}`;
   }
 
-  async request(method, route, { body, query, auth = true, bearer } = {}) {
+  async request(method, route, { body, query, auth = true } = {}) {
     const headers = { Accept: 'application/json' };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
-    if (bearer) {
-      // A caller-supplied credential (web-app routes): never touches the connection state.
-      headers.Authorization = `Bearer ${bearer}`;
-      auth = false;
-    } else if (auth) {
+    if (auth) {
       const token = this.getToken();
       if (!token) {
         this.disconnected = true;
@@ -107,15 +103,6 @@ export class D20Api {
   // Pairing (no token)
   pairStart(info) { return this.request('POST', 'pair/start', { body: info, auth: false }); }
   pairPoll(deviceCode) { return this.request('POST', 'pair/poll', { body: { deviceCode }, auth: false }); }
-
-  // Web-app routes, authorized by a Supabase session rather than the connection token.
-  // The module never calls these; they are here so the client covers the whole contract.
-  pairLookup(code, supabaseToken) {
-    return this.request('GET', 'pair/lookup', { query: { code }, bearer: supabaseToken });
-  }
-  pairApprove(userCode, campaignId, supabaseToken) {
-    return this.request('POST', 'pair/approve', { body: { userCode, campaignId }, bearer: supabaseToken });
-  }
 
   // Connected routes
   state() { return this.request('GET', 'state'); }

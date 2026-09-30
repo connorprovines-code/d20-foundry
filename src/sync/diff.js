@@ -31,10 +31,10 @@ const CREATE_FIELDS = [
 ];
 
 /**
- * The `item` of a create op: Group field names, no `equipped` (that goes in a later update).
- * CONTRACT: `equipped` is documented for `update` only, so create leaves it out. `notes`,
- * `isHidden` and `containerId` are never sent from Foundry: descriptions are rich HTML, Foundry
- * has no hidden-from-players item, and Foundry containers do not map to D20 containers.
+ * The `item` of a create op: Group field names, no `equipped` (a later update sends it, and
+ * the server picks the slot then). `notes`, `isHidden` and `containerId` are never sent from
+ * Foundry: descriptions are rich HTML, Foundry has no hidden-from-players item, and Foundry
+ * containers do not map to D20 containers.
  */
 export function createItemFields(fields) {
   const out = {};
@@ -115,7 +115,7 @@ export function diffInventory({ entries, known, activeOwners, now = Date.now(), 
     if (!byOwner.has(owner)) {
       let best = null;
       for (const [o, g] of byOwner) if (!best || g.quantity > byOwner.get(best).quantity) best = o;
-      // CONTRACT: a full move (no quantity) is assumed to keep the group's syncGroup.
+      // A full move (no quantity) keeps the group's syncGroup.
       out.push({
         op: { type: 'move', syncGroup, to: best },
         meta: { kind: 'move', syncGroup, to: best, uuids: byOwner.get(best).entries.map((e) => e.uuid) },
@@ -165,8 +165,8 @@ export function diffInventory({ entries, known, activeOwners, now = Date.now(), 
     // Copies on the same actor whose fields no longer match the stack split off as their own group.
     for (const e of ownerEntries) {
       if (e === primary || sameFields(primary.fields, e.fields) || e.quantity <= 0) continue;
-      // CONTRACT: a partial `move` to the same owner is assumed to split those rows into a new
-      // syncGroup, like any partial move; the new group's field update follows in a later diff.
+      // A partial `move` to the same owner splits those rows into a new syncGroup, like any
+      // partial move; the new group's field update follows in a later diff.
       out.push({
         op: { type: 'move', syncGroup, to: owner, quantity: e.quantity },
         meta: { kind: 'split', syncGroup, to: owner, quantity: e.quantity, uuids: [e.uuid], fields: k.fields },

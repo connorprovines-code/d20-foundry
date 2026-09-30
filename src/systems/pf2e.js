@@ -1,5 +1,5 @@
 // Pathfinder 2e adapter (pf2e 8.x on Foundry v14).
-// Verified against pf2e v14-dev (system.pf2e.json version 8.5.1), https://github.com/foundryvtt/pf2e:
+// Data paths, from the pf2e 8.5.1 source (https://github.com/foundryvtt/pf2e):
 // - physical item types: ammo, armor, backpack, book, consumable, equipment, shield,
 //   treasure, weapon (src/module/item/physical/values.ts PHYSICAL_ITEM_TYPES)
 // - system.quantity; system.price.{value: {pp,gp,sp,cp}, per}; system.bulk.value in bulk
@@ -131,8 +131,8 @@ export const pf2eAdapter = {
     return compact({
       name: realName(item),
       value: round(priceToGold(sys.price?.value) / pricePer(item)),
-      // CONTRACT: bulk is sent as the item's own bulk value (light = 0.1), the number the
-      // D20 pf2e picker stores; for items priced/bulked per N (arrows) it is the bulk of N.
+      // Bulk is sent as the item's own bulk value (light = 0.1), the number the D20 pf2e
+      // picker stores; for items priced and bulked per N (arrows) it is the bulk of N.
       bulk: round(num(src.bulk?.value ?? sys.bulk?.value)),
       charges: ammo ? this.getQuantity(item) : (uses && num(uses.max) > 1 ? num(uses.value) : null),
       itemIcon: iconFor(item),

@@ -25,13 +25,11 @@ describe('D20Api', () => {
     expect(JSON.parse(init.body)).toEqual({ ops: [{ type: 'delete', syncGroup: 'g1' }] });
   });
 
-  it('covers every contract route', async () => {
+  it('covers every route the module calls', async () => {
     const fetch = vi.fn(async () => response(200, {}));
     const api = makeApi(fetch, { getBaseUrl: () => 'https://example.test/api/foundry/' });
     await api.pairStart({ worldId: 'w' });
     await api.pairPoll('dev');
-    await api.pairLookup('ABCD-EFGH', 'sb');
-    await api.pairApprove('ABCD-EFGH', 'c1', 'sb');
     await api.state();
     await api.changes('42');
     await api.apply([]);
@@ -39,12 +37,13 @@ describe('D20Api', () => {
     await api.disconnect();
     const calls = fetch.mock.calls.map(([url, init]) => `${init.method} ${url.replace('https://example.test/api/foundry/', '')}`);
     expect(calls).toEqual([
-      'POST pair/start', 'POST pair/poll', 'GET pair/lookup?code=ABCD-EFGH', 'POST pair/approve',
+      'POST pair/start', 'POST pair/poll',
       'GET state', 'GET changes?after=42', 'POST apply', 'PUT actors', 'POST disconnect',
     ]);
-    // Pairing is unauthenticated; the web-app routes carry the caller's own credential.
+    // Pairing is unauthenticated; everything after it carries the connection token.
     expect(fetch.mock.calls[0][1].headers.Authorization).toBeUndefined();
-    expect(fetch.mock.calls[2][1].headers.Authorization).toBe('Bearer sb');
+    expect(fetch.mock.calls[1][1].headers.Authorization).toBeUndefined();
+    expect(fetch.mock.calls[2][1].headers.Authorization).toBe('Bearer tok123');
   });
 
   it('on 401 marks itself disconnected and calls onUnauthorized once', async () => {

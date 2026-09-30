@@ -1,12 +1,12 @@
 {
   "id": "d20-loot-tracker",
   "title": "D20 Loot Tracker",
-  "description": "Two-way sync of party loot, character inventories and coins between Foundry VTT and the D20 Loot Tracker web and Android app, for D&D 5e, Pathfinder 2e and Pathfinder 1e.",
-  "version": "1.0.0",
+  "description": "Track every coin, item and treasure your party finds without juggling spreadsheets or notes.",
+  "version": "1.0.1",
   "authors": [
     {
       "name": "D20 Loot Tracker",
-      "url": "https://d20-loot-tracker.com/",
+      "url": "https://github.com/connorprovines-code",
       "discord": ".serthe"
     }
   ],
@@ -42,6 +42,9 @@
   "esmodules": [
     "module.js"
   ],
+  "styles": [
+    "styles/d20-loot-tracker.css"
+  ],
   "languages": [
     {
       "lang": "en",
@@ -49,9 +52,9 @@
       "path": "lang/en.json"
     }
   ],
-  "url": "https://d20-loot-tracker.com/",
+  "url": "https://github.com/connorprovines-code/d20-foundry",
   "manifest": "https://app.d20-loot-tracker.com/foundry/module.json",
   "download": "https://app.d20-loot-tracker.com/foundry/d20-loot-tracker-{version}.zip",
   "bugs": "https://discord.gg/TwSTSZvfaN",
-  "license": "https://d20-loot-tracker.com/terms"
+  "license": "https://github.com/connorprovines-code/d20-foundry/blob/main/LICENSE"
 }

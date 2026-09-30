@@ -1,4 +1,4 @@
-// The sync engine. Runs only on the active GM's client.
+// The sync engine. Runs only in the GM browser that connected the world (see canSync).
 //
 // Outbound: item and actor hooks mark the engine dirty; 500 ms later it snapshots the
 // linked actors, diffs them against `known` (diff.js), stores the resulting ops in the
@@ -17,7 +17,7 @@ import {
 } from '../constants.js';
 import { KEYS } from '../settings.js';
 import { changedFields, num, realName, syncGroupOf } from '../systems/common.js';
-import { foldCoins, hasUnfoldedCoins, samePurse } from './coins.js';
+import { foldCoins, hasUnfoldedCoins, isEmptyPurse, purseToCoins, samePurse } from './coins.js';
 import { diffInventory, diffPurses } from './diff.js';
 
 const OPTS = Object.freeze({ [SYNC_OPTION]: true });
@@ -91,11 +91,28 @@ export class SyncEngine {
   // ---------------------------------------------------------------------------
   // Lifecycle
 
-  static isActiveGM() {
+  /**
+   * Whether this browser runs the sync. The token lives only in the browser that paired, so
+   * that browser syncs whenever its GM is logged in, whichever GM Foundry counts as active.
+   * A connection records the pairing browser's clientKey; connections made before it existed
+   * fall back to Foundry's active GM.
+   */
+  canSync() {
     const game = globalThis.game;
-    if (!game?.user?.isGM) return false;
+    if (!game?.user?.isGM || !this.store.isConnected()) return false;
+    const key = this.store.get(KEYS.connection)?.clientKey;
+    if (key) return this.store.get(KEYS.clientKey) === key;
     const active = game.users?.activeGM;
     return active ? active.id === game.user.id : true;
+  }
+
+  /** A connection made before clientKey existed: the browser that syncs it claims it now. */
+  async _adoptClientKey() {
+    const connection = this.store.get(KEYS.connection);
+    if (!connection || connection.clientKey) return;
+    const clientKey = this.store.get(KEYS.clientKey) || (globalThis.foundry?.utils?.randomID?.(16) ?? String(this.now()));
+    await this.store.set(KEYS.clientKey, clientKey);
+    await this.store.set(KEYS.connection, { ...connection, clientKey, pairedBy: globalThis.game?.user?.id ?? null });
   }
 
   onChange(fn) {
@@ -117,12 +134,14 @@ export class SyncEngine {
 
   async start() {
     if (this.running) return;
-    if (!SyncEngine.isActiveGM()) return;
+    if (!globalThis.game?.user?.isGM) return;
     if (!this.store.isConnected()) {
       this._setStatus('disconnected');
       return;
     }
+    if (!this.canSync()) return;
     this.running = true;
+    await this._adoptClientKey();
     this._registerHooks();
     this._setStatus('connecting');
     try {
@@ -220,7 +239,30 @@ export class SyncEngine {
   // ---------------------------------------------------------------------------
   // Actor links
 
-  links() { return this.store.get(KEYS.links) ?? {}; }
+  /**
+   * Target -> actor uuid. An actor linked to two targets counts for the first one only;
+   * otherwise its items would be seen twice and read as their own duplicates.
+   */
+  links() {
+    const out = {};
+    const seen = new Set();
+    for (const [target, uuid] of Object.entries(this.store.get(KEYS.links) ?? {})) {
+      if (!uuid || seen.has(uuid)) continue;
+      seen.add(uuid);
+      out[target] = uuid;
+    }
+    return out;
+  }
+
+  /** Linked owners whose first-link reconcile has not run yet for their current actor. */
+  _pendingFirstLinks() {
+    const first = this.store.get(KEYS.firstLink) ?? {};
+    const pending = new Set();
+    for (const [owner, uuid] of Object.entries(this.links())) {
+      if (!(first[owner]?.done && first[owner].actorUuid === uuid)) pending.add(owner);
+    }
+    return pending;
+  }
   known() {
     const k = this.store.get(KEYS.known) ?? {};
     k.groups ??= {};
@@ -404,9 +446,9 @@ export class SyncEngine {
         this.needsResync = true;
         continue;
       }
-      // CONTRACT: if the page reloads after the server applied a batch but before the queue is
-      // cleared, the batch is sent again; creates carry clientId (the item uuid) so the server
-      // can recognise a repeat, but the contract does not say it does.
+      // If the page reloads after the server applied a batch but before the queue is cleared,
+      // the batch is sent again. Creates carry clientId (the item uuid), and the server creates
+      // each clientId once per connection.
       const known = this.known();
       const results = res?.results ?? [];
       for (let i = 0; i < batch.length; i++) {
@@ -416,8 +458,8 @@ export class SyncEngine {
       await this.store.set(KEYS.known, known);
       await this.store.set(KEYS.queue, queue);
       this.lastSyncAt = this.now();
-      // CONTRACT: apply's `cursor` is not adopted; `changes` already leaves out this
-      // connection's own writes, and jumping the cursor could skip other people's changes.
+      // apply's `cursor` is not adopted: `changes` already leaves out this connection's own
+      // writes, and jumping the cursor could skip changes other people made meanwhile.
     }
     return true;
   }
@@ -427,7 +469,7 @@ export class SyncEngine {
     switch (meta.kind) {
       case 'create': {
         const syncGroup = result.syncGroup;
-        if (!syncGroup) return; // CONTRACT: create is documented to return syncGroup
+        if (!syncGroup) return; // the server returns the new group's syncGroup
         groups[syncGroup] = { owner: meta.owner, quantity: meta.quantity, fields: meta.fields, itemUuid: meta.uuid };
         const item = this._findItem(meta.uuid);
         if (item) await this._setFlags(item, syncGroup, meta.owner);
@@ -463,7 +505,7 @@ export class SyncEngine {
         const g = groups[meta.syncGroup];
         if (g) g.quantity = Math.max(0, g.quantity - meta.quantity);
         const syncGroup = result.syncGroup;
-        if (!syncGroup) return; // CONTRACT: a partial move is documented to return the new syncGroup
+        if (!syncGroup) return; // a partial move returns the split-off group's syncGroup
         groups[syncGroup] = { owner: meta.to, quantity: meta.quantity, fields: meta.fields, itemUuid: meta.uuids[0] };
         for (const uuid of meta.uuids) {
           const item = this._findItem(uuid);
@@ -475,8 +517,8 @@ export class SyncEngine {
         delete groups[meta.syncGroup];
         return;
       case 'purse':
-        // CONTRACT: `changes` leaves out this connection's own writes, so the folded purse
-        // never comes back from D20; the module folds pp/ep itself once D20 has accepted it.
+        // `changes` leaves out this connection's own writes, so the folded purse never comes
+        // back from D20; the module folds pp/ep itself once D20 has accepted it.
         known.purses[meta.owner] = meta.folded;
         await this._foldLocally(meta.owner, meta.folded, known);
         return;
@@ -554,13 +596,20 @@ export class SyncEngine {
   async _applyChanges(res) {
     this._index = null;
     const known = this.known();
-    for (const group of res.groups ?? []) await this._reconcile(group, known);
-    // CONTRACT: `purses` are Player rows; their `id` is the owner (players.id).
+    // An actor whose first link has not run keeps its items until that choice is applied
+    // (a full reload); reconciling it now would add D20's items next to its unpaired ones.
+    const pending = this._pendingFirstLinks();
+    if (pending.size) this.needsResync = true;
+    for (const group of res.groups ?? []) {
+      if (pending.has(group.owner)) continue;
+      await this._reconcile(group, known);
+    }
+    // `purses` are Player rows; their `id` is the owner (players.id).
     for (const player of res.purses ?? []) {
       this._rememberPlayer(player);
-      await this._applyPurse(player.id, player, known);
+      if (!pending.has(player.id)) await this._applyPurse(player.id, player, known);
     }
-    if (res.partyFund) await this._applyPurse(OWNER_PARTY, res.partyFund, known);
+    if (res.partyFund && !pending.has(OWNER_PARTY)) await this._applyPurse(OWNER_PARTY, res.partyFund, known);
     if (res.containers?.length) {
       const byId = new Map(this.containers.map((c) => [c.id, c]));
       for (const c of res.containers) byId.set(c.id, c);
@@ -577,14 +626,24 @@ export class SyncEngine {
     else this.players.push(player);
   }
 
+  /**
+   * Writes a D20 purse onto the linked actor. `known` records the coins as Foundry shows them
+   * afterwards: pf1 and pf2e hold whole coins only, so D20's 12.5 gp becomes 12 gp 5 sp, and
+   * recording D20's own split would make the next diff send that back as a change.
+   */
   async _applyPurse(owner, purse, known) {
     const target = { gold: num(purse.gold), silver: num(purse.silver), copper: num(purse.copper) };
     known.purses[owner] = target;
     const actor = this.actorFor(owner);
     if (!actor || owner === OWNER_INCOMING) return;
-    const coins = this.adapter.readCurrency(actor);
-    if (samePurse(foldCoins(coins), target) && !hasUnfoldedCoins(coins)) return;
-    await this.adapter.writeCurrency(actor, target, opts());
+    let coins = this.adapter.readCurrency(actor);
+    // What writeCurrency would leave on the actor; already there means nothing to write.
+    const wanted = purseToCoins(target, { integer: !!this.adapter.integerCurrency });
+    if (hasUnfoldedCoins(coins) || !samePurse(foldCoins(coins), foldCoins(wanted))) {
+      await this.adapter.writeCurrency(actor, target, opts());
+      coins = this.adapter.readCurrency(actor);
+    }
+    known.purses[owner] = foldCoins(coins);
   }
 
   /**
@@ -709,25 +768,36 @@ export class SyncEngine {
     const links = {};
     for (const l of state.actorLinks ?? []) if (l?.target && l?.actorUuid) links[l.target] = l.actorUuid;
     await this.store.set(KEYS.links, links);
+    const linked = this.links();
 
     const known = this.known();
-    // CONTRACT: `state.groups` is taken to be every live group of the campaign (incoming, party
-    // and every player, linked or not) and no terminal ones, so a known group missing from it
-    // was sold, discarded or used up.
+    // `state.groups` is every live group of the campaign (incoming, party and every player,
+    // linked or not) and no terminal ones, so a known group missing from it was sold,
+    // discarded or used up.
     const groups = state.groups ?? [];
     const groupIds = new Set(groups.map((g) => g.syncGroup));
     const first = this.store.get(KEYS.firstLink) ?? {};
     const foundryWins = new Set();
+    const coinsFromFoundry = new Set();
+    let firstLinked = false;
 
-    for (const [owner, actorUuid] of Object.entries(links)) {
+    for (const [owner, actorUuid] of Object.entries(linked)) {
       const rec = first[owner];
       if (rec?.done && rec.actorUuid === actorUuid) continue;
-      const mode = rec?.actorUuid === actorUuid ? rec.mode : 'merge';
-      await this._firstLink(owner, mode ?? 'merge', groups, groupIds, known);
-      if (mode === 'foundry') foundryWins.add(owner);
-      first[owner] = { actorUuid, mode: mode ?? 'merge', done: true };
+      const mode = (rec?.actorUuid === actorUuid ? rec.mode : null) ?? 'merge';
+      await this._firstLink(owner, mode, groups, groupIds, known);
+      firstLinked = true;
+      if (mode === 'foundry') {
+        foundryWins.add(owner);
+        coinsFromFoundry.add(owner);
+      } else if (mode === 'merge') {
+        // Keep both: D20's purse stays unless it is empty, then the actor's coins go to D20.
+        const ownerPurse = owner === OWNER_PARTY ? state.partyFund : this.players.find((p) => p.id === owner);
+        if (isEmptyPurse(ownerPurse)) coinsFromFoundry.add(owner);
+      }
+      first[owner] = { actorUuid, mode, done: true };
     }
-    for (const owner of Object.keys(first)) if (!links[owner]) delete first[owner];
+    for (const owner of Object.keys(first)) if (!linked[owner]) delete first[owner];
     await this.store.set(KEYS.firstLink, first);
 
     for (const group of groups) {
@@ -736,7 +806,7 @@ export class SyncEngine {
     }
 
     // Flagged items whose group D20 no longer has: sold, discarded or used up while away.
-    for (const [owner, actorUuid] of Object.entries(links)) {
+    for (const [owner, actorUuid] of Object.entries(linked)) {
       if (foundryWins.has(owner)) continue;
       const actor = this._resolveActor(actorUuid);
       if (!actor) continue;
@@ -748,12 +818,14 @@ export class SyncEngine {
     }
     for (const sg of Object.keys(known.groups)) if (!groupIds.has(sg)) delete known.groups[sg];
 
+    // Coins that go from Foundry to D20: `known` takes D20's purse, so the diff sends the actor's.
+    const d20Purse = (p) => ({ gold: num(p.gold), silver: num(p.silver), copper: num(p.copper) });
     for (const player of this.players) {
-      if (foundryWins.has(player.id)) known.purses[player.id] = { gold: num(player.gold), silver: num(player.silver), copper: num(player.copper) };
+      if (coinsFromFoundry.has(player.id)) known.purses[player.id] = d20Purse(player);
       else await this._applyPurse(player.id, player, known);
     }
     if (state.partyFund) {
-      if (foundryWins.has(OWNER_PARTY)) known.purses[OWNER_PARTY] = { ...state.partyFund };
+      if (coinsFromFoundry.has(OWNER_PARTY)) known.purses[OWNER_PARTY] = d20Purse(state.partyFund);
       else await this._applyPurse(OWNER_PARTY, state.partyFund, known);
     }
 
@@ -762,8 +834,9 @@ export class SyncEngine {
     if (state.cursor !== undefined && state.cursor !== null) await this.store.set(KEYS.cursor, String(state.cursor));
     this.lastSyncAt = this.now();
 
-    // "Foundry wins" links leave D20 behind on purpose; the diff sends Foundry's side now.
-    if (foundryWins.size) await this._flushInner();
+    // A first link can leave Foundry ahead of D20 on purpose (Foundry wins, or items and
+    // coins kept by Keep both); the diff sends that side now rather than at the next edit.
+    if (firstLinked) await this._flushInner();
     this._emit();
   }
 
@@ -774,8 +847,9 @@ export class SyncEngine {
    *   missing groups are created, and unpaired Foundry items are removed.
    * - 'foundry': Foundry wins. Paired groups take Foundry's values, unpaired Foundry items
    *   are created in D20, and groups with no Foundry item are discarded in D20.
-   * - 'merge' (links made outside this world's config, so no choice was recorded): like
-   *   'd20', but unpaired Foundry items are kept and sent to D20 as new items.
+   * - 'merge' (Keep both, the default; also used for links made outside this world's
+   *   config): like 'd20', but unpaired Foundry items are kept and sent to D20 as new items,
+   *   and the actor's coins go to D20 when D20's purse is empty.
    */
   async _firstLink(owner, mode, groups, groupIds, known) {
     const actor = this.actorFor(owner);
@@ -842,12 +916,17 @@ export class SyncEngine {
   /**
    * Saves links on the server and records the first-link choice for new ones.
    * @param {Record<string, string|null>} links target -> actor uuid (null unlinks)
-   * @param {Record<string, 'd20'|'foundry'>} modes first-link choice per target
+   * @param {Record<string, 'merge'|'d20'|'foundry'>} modes first-link choice per target
    */
   async saveLinks(links, modes = {}) {
     const payload = Object.entries(links)
       .filter(([, uuid]) => !!uuid)
       .map(([target, actorUuid]) => ({ target, actorUuid }));
+    const twice = SyncEngine.duplicateActor(links);
+    if (twice) {
+      const name = this._resolveActor(twice)?.name ?? twice;
+      throw new Error(t('Notify.DuplicateActor', { name }));
+    }
     const res = await this.api.putActors(payload);
     const saved = {};
     for (const l of res?.actorLinks ?? payload) saved[l.target] = l.actorUuid;
@@ -856,7 +935,7 @@ export class SyncEngine {
     for (const [target, actorUuid] of Object.entries(saved)) {
       const rec = first[target];
       if (rec?.done && rec.actorUuid === actorUuid) continue;
-      first[target] = { actorUuid, mode: modes[target] ?? rec?.mode ?? 'd20', done: false };
+      first[target] = { actorUuid, mode: modes[target] ?? rec?.mode ?? 'merge', done: false };
     }
     for (const target of Object.keys(first)) if (!saved[target]) delete first[target];
 
@@ -864,8 +943,27 @@ export class SyncEngine {
     await this.store.set(KEYS.links, saved);
     await this.store.set(KEYS.firstLink, first);
     await this._flagActors(previous, saved);
-    if (this.running) await this.loadState();
+    if (this.running) {
+      try {
+        await this.loadState();
+      } catch (err) {
+        // The links are saved; the first sync of the new ones runs on the next poll.
+        this.needsResync = true;
+        throw err;
+      }
+    }
     return saved;
+  }
+
+  /** The first actor uuid chosen for more than one target, or null. */
+  static duplicateActor(links) {
+    const seen = new Set();
+    for (const uuid of Object.values(links ?? {})) {
+      if (!uuid) continue;
+      if (seen.has(uuid)) return uuid;
+      seen.add(uuid);
+    }
+    return null;
   }
 
   async _flagActors(previous, next) {
