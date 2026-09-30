@@ -21,7 +21,7 @@ Keeps a Foundry VTT world and a [D20 Loot Tracker](https://app.d20-loot-tracker.
 In Foundry's setup screen, open **Add-on Modules**, choose **Install Module**, and paste this manifest URL:
 
 ```
-https://github.com/OWNER/d20-foundry/releases/latest/download/module.json
+https://app.d20-loot-tracker.com/foundry/module.json
 ```
 
 Then enable **D20 Loot Tracker** in the world's module settings.
@@ -106,6 +106,7 @@ The connection token is kept only in the connecting GM's browser (a client setti
 npm install
 npm test        # vitest
 npm run build   # dist/module.js, module.json, lang/, templates/
+npm run build:release   # the same, minified and without a source map, as shipped
 ```
 
-`dist/` is the module folder Foundry loads. `OWNER` in `module.json` is a placeholder for the GitHub account that will host releases.
+`dist/` is the module folder Foundry loads.
