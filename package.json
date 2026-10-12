@@ -1,6 +1,6 @@
 {
   "name": "d20-foundry",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Foundry VTT module that syncs inventory and coins with D20 Loot Tracker.",
   "type": "module",
